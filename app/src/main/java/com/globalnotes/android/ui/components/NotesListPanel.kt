@@ -4,13 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,180 +17,169 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsFocusedAsState
-import androidx.compose.material3.ExperimentalMaterial3Api
+import com.globalnotes.android.viewmodel.NoteViewModel
+import com.globalnotes.android.viewmodel.Note
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesListPanel(
     modifier: Modifier = Modifier,
+    viewModel: NoteViewModel,
     onNoteClick: () -> Unit = {},
     onMenuClick: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf(TextFieldValue("")) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val isFocused by interactionSource.collectIsFocusedAsState()
     
     val filteredNotes by remember {
         derivedStateOf {
-            if (searchQuery.text.isEmpty()) dummyNotes
-            else dummyNotes.filter { it.title.contains(searchQuery.text, ignoreCase = true) }
+            viewModel.filteredNotes.filter { 
+                it.title.contains(searchQuery.text, ignoreCase = true) || 
+                it.content.contains(searchQuery.text, ignoreCase = true) 
+            }
         }
     }
-    
+
     Column(
         modifier = modifier
             .fillMaxHeight()
             .background(MaterialTheme.colorScheme.surface)
             .statusBarsPadding()
-            .padding(24.dp)
             .navigationBarsPadding()
     ) {
         // Top Header
-        Row(
-            modifier = Modifier
-                .padding(horizontal = 20.dp, vertical = 16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text(
-                    "Global Notes",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-                Text("All Notes", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            }
-            IconButton(
-                onClick = { /* New Note */ },
-                modifier = Modifier.background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape)
+        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(Icons.Default.Add, contentDescription = "New", tint = MaterialTheme.colorScheme.primary)
+                Text(
+                    viewModel.currentFilter,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                IconButton(
+                    onClick = { viewModel.addNote() },
+                    modifier = Modifier.size(32.dp).background(MaterialTheme.colorScheme.primary, CircleShape)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "New", tint = Color.White, modifier = Modifier.size(18.dp))
+                }
             }
+            Text(
+                "${filteredNotes.size} notes",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                modifier = Modifier.padding(top = 4.dp)
+            )
         }
 
-        // Search Bar
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
+        // Search Bar (Unified)
+        Surface(
             modifier = Modifier
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = 24.dp)
                 .fillMaxWidth()
-                .height(52.dp),
-            placeholder = { Text("Search your workspace...", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)) },
-            leadingIcon = { 
+                .height(44.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            ) {
                 Icon(
                     Icons.Default.Search, 
                     contentDescription = null, 
-                    modifier = Modifier.size(20.dp),
-                    tint = if (isFocused) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                ) 
-            },
-            trailingIcon = {
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                )
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.padding(horizontal = 12.dp).weight(1f),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                    singleLine = true,
+                    decorationBox = { innerTextField ->
+                        if (searchQuery.text.isEmpty()) {
+                            Text("Search notes...", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f), style = MaterialTheme.typography.bodyMedium)
+                        }
+                        innerTextField()
+                    }
+                )
                 if (searchQuery.text.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = TextFieldValue("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(18.dp))
+                    IconButton(onClick = { searchQuery = TextFieldValue("") }, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Clear", modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
                     }
                 }
-            },
-            interactionSource = interactionSource,
-            shape = RoundedCornerShape(16.dp),
-            singleLine = true,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                unfocusedBorderColor = Color.Transparent,
-                focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                cursorColor = MaterialTheme.colorScheme.primary
-            )
-        )
-
-        // Filter Chips
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(listOf("All", "Work", "Personal", "Ideas", "To-do")) { filter ->
-                FilterChip(
-                    selected = filter == "All",
-                    onClick = { },
-                    label = { Text(filter, fontSize = 12.sp) },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primary,
-                        selectedLabelColor = Color.White
-                    ),
-                    border = null
-                )
             }
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
 
         // Notes List
         LazyColumn(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(1.dp)
+            contentPadding = PaddingValues(bottom = 24.dp)
         ) {
-            items(filteredNotes, key = { it.title }) { note ->
-                NoteRow(note, onNoteClick)
+            items(filteredNotes, key = { it.id }) { note ->
+                NoteRow(
+                    note = note, 
+                    isSelected = viewModel.selectedNoteId == note.id,
+                    onClick = { 
+                        viewModel.selectNote(note.id)
+                        onNoteClick()
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun NoteRow(note: DummyNote, onClick: () -> Unit) {
-    val isSelected = note.title == "Product Vision 2024"
-
-    Card(
+fun NoteRow(note: Note, isSelected: Boolean, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable { onClick() },
+            .padding(horizontal = 16.dp, vertical = 2.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-        )
+        color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = note.title,
+                    text = if (note.title.isEmpty()) "Untitled Note" else note.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
                 )
+                if (note.isFavorite) {
+                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFD700), modifier = Modifier.size(14.dp))
+                }
+            }
+            
+            Row(modifier = Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     note.time, 
                     style = MaterialTheme.typography.labelSmall, 
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (note.content.isEmpty()) "No additional text" else note.content.replace("\n", " "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = note.preview,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
         }
     }
 }
-
-data class DummyNote(val title: String, val preview: String, val time: String)
-val dummyNotes = listOf(
-    DummyNote("Product Vision 2024", "The future of document collaboration is here. We need to focus on...", "10:30 AM"),
-    DummyNote("Marketing Strategy", "Campaign themes: Simplicity, Speed, Security. Focus on enterprise...", "Yesterday"),
-    DummyNote("Groceries", "Milk, Eggs, Bread, Avocados, Coffee beans, Pasta, Sauce...", "Feb 24"),
-    DummyNote("Mobile App Feedback", "Users want more offline features and better tablet support...", "Feb 22"),
-    DummyNote("Meeting Notes", "Discussed the new roadmap and sync issues with Supabase...", "Feb 20")
-)

@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -20,63 +19,120 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.globalnotes.android.viewmodel.NoteViewModel
 
 @Composable
-fun SidebarPanel(modifier: Modifier = Modifier) {
+fun SidebarPanel(
+    modifier: Modifier = Modifier,
+    viewModel: NoteViewModel
+) {
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f))
             .statusBarsPadding()
-            .padding(24.dp)
+            .padding(20.dp)
     ) {
-        // Header
+        // App Identity
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 24.dp)
+            modifier = Modifier.padding(bottom = 32.dp, start = 8.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Description,
-                contentDescription = "Logo",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.padding(6.dp).size(16.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = "Global Notes",
+                text = "Workspace",
                 style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
         }
 
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            item { SectionLabel("MY WORKSPACE") }
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            item { SectionLabel("COLLECTIONS") }
             
-            item { SidebarItem("All Notes", Icons.Outlined.Notes, badge = "12") }
-            item { SidebarItem("Recent", Icons.Outlined.History) }
-            item { SidebarItem("Favorites", Icons.Outlined.StarOutline) }
-            item { SidebarItem("Archived", Icons.Outlined.Archive) }
+            item { 
+                SidebarItem(
+                    text = "All Notes", 
+                    icon = Icons.Outlined.Notes, 
+                    isSelected = viewModel.currentFilter == "All Notes",
+                    onClick = { viewModel.updateFilter("All Notes") }
+                ) 
+            }
+            item { 
+                SidebarItem(
+                    text = "Favorites", 
+                    icon = Icons.Outlined.StarOutline,
+                    isSelected = viewModel.currentFilter == "Favorites",
+                    onClick = { viewModel.updateFilter("Favorites") }
+                ) 
+            }
+            item { 
+                SidebarItem(
+                    text = "Archived", 
+                    icon = Icons.Outlined.Archive,
+                    isSelected = viewModel.currentFilter == "Archived",
+                    onClick = { viewModel.updateFilter("Archived") }
+                ) 
+            }
             
             item { Spacer(modifier = Modifier.height(24.dp)) }
             
             item { SectionLabel("FOLDERS") }
-            item { FolderItem("Personal", Color(0xFF4CAF50), count = "5") }
-            item { FolderItem("Work", Color(0xFF2196F3), count = "3") }
-            item { FolderItem("Project X", Color(0xFFFF9800), count = "4") }
-            item { NewButton("+ New Folder") }
+            item { 
+                FolderItem(
+                    "Personal", 
+                    Color(0xFF4CAF50), 
+                    isSelected = viewModel.currentFilter == "Personal",
+                    onClick = { viewModel.updateFilter("Personal") }
+                ) 
+            }
+            item { 
+                FolderItem(
+                    "Work", 
+                    Color(0xFF2196F3), 
+                    isSelected = viewModel.currentFilter == "Work",
+                    onClick = { viewModel.updateFilter("Work") }
+                ) 
+            }
             
-            item { Spacer(modifier = Modifier.height(24.dp)) }
-            
-            item { SectionLabel("LABELS") }
-            item { LabelItem("Priority", Color.Red) }
-            item { LabelItem("In Progress", Color.Yellow) }
-            item { NewButton("+ Create new label") }
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp)
+                        .clickable { viewModel.addNote() }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("New Page", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                }
+            }
         }
 
-        Divider(modifier = Modifier.padding(vertical = 16.dp), thickness = 0.5.dp)
-
-        // User Profile
-        UserFooter()
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+        ) {
+            UserFooter()
+        }
     }
 }
 
@@ -85,89 +141,85 @@ fun SectionLabel(text: String) {
     Text(
         text = text,
         style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
-        modifier = Modifier.padding(bottom = 8.dp)
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(start = 8.dp, bottom = 12.dp, top = 8.dp)
     )
 }
 
 @Composable
-fun SidebarItem(text: String, icon: ImageVector, badge: String? = null) {
+fun SidebarItem(
+    text: String, 
+    icon: ImageVector, 
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .clickable { }
-            .padding(vertical = 8.dp, horizontal = 8.dp),
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color.Transparent)
+            .clickable { onClick() }
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+        Icon(
+            icon, 
+            contentDescription = null, 
+            modifier = Modifier.size(20.dp), 
+            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+        )
         Spacer(modifier = Modifier.width(12.dp))
-        Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-        if (badge != null) {
-            Badge(containerColor = MaterialTheme.colorScheme.primaryContainer) {
-                Text(badge, fontSize = 10.sp)
-            }
-        }
+        Text(
+            text, 
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
 @Composable
-fun FolderItem(name: String, color: Color, count: String) {
+fun FolderItem(name: String, color: Color, isSelected: Boolean, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp, horizontal = 8.dp),
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isSelected) color.copy(alpha = 0.1f) else Color.Transparent)
+            .clickable { onClick() }
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(Icons.Outlined.Folder, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.width(12.dp))
-        Text(name, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-        Text(count, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f))
+        Text(
+            name, 
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
-}
-
-@Composable
-fun LabelItem(name: String, color: Color) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(color))
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(name, style = MaterialTheme.typography.bodySmall)
-    }
-}
-
-@Composable
-fun NewButton(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier
-            .clickable { }
-            .padding(vertical = 8.dp, horizontal = 8.dp)
-    )
 }
 
 @Composable
 fun UserFooter() {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier.size(32.dp).clip(CircleShape).background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)),
-            contentAlignment = Alignment.Center
+        Surface(
+            modifier = Modifier.size(36.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer
         ) {
-            Text("AP", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Box(contentAlignment = Alignment.Center) {
+                Text("AP", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            }
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Text("Ayush Patel", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
-            Text("Free Plan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+            Text("Ayush Patel", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+            Text("Pro Plan", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
