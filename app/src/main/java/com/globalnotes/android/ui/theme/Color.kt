@@ -51,3 +51,11 @@ val LoadingBackgroundStart = Color(0xFF2C241E)
 val LoadingBackgroundEnd = Color(0xFF14100D)
 val LoadingAccent = Color(0xFFD97706)
 val LoadingText = Color(0xFFE5E7EB)
+
+// Onboarding Screen Colors
+val OnboardingBackground = Color(0xFFFDFBF7)
+val OnboardingTitle = Color(0xFF211B15)
+val OnboardingSubtitle = Color(0xFF6E665A)
+val OnboardingButton = Color(0xFFC07727)
+val OnboardingDotActive = Color(0xFFD97706)
+val OnboardingDotInactive = Color(0xFFD1CECB)

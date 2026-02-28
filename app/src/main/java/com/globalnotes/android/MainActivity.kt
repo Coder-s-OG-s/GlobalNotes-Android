@@ -25,16 +25,34 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            var showSplash by remember { mutableStateOf(true) }
+            var appState by remember { mutableStateOf<AppState>(AppState.Loading) }
+            
             GlobalNotesTheme {
-                Crossfade(targetState = showSplash, label = "splashTransition") { isSplash ->
-                    if (isSplash) {
-                        com.globalnotes.android.ui.screens.LoadingScreen(onFinish = { showSplash = false })
-                    } else {
-                        MainScreen()
+                Crossfade(targetState = appState, label = "appTransition") { state ->
+                    when (state) {
+                        AppState.Loading -> {
+                            com.globalnotes.android.ui.screens.LoadingScreen(onFinish = { 
+                                appState = AppState.Onboarding 
+                            })
+                        }
+                        AppState.Onboarding -> {
+                            com.globalnotes.android.ui.screens.OnboardingScreen(
+                                onBack = { appState = AppState.Loading },
+                                onFinish = { appState = AppState.Main }
+                            )
+                        }
+                        AppState.Main -> {
+                            MainScreen()
+                        }
                     }
                 }
             }
         }
     }
+}
+
+sealed class AppState {
+    data object Loading : AppState()
+    data object Onboarding : AppState()
+    data object Main : AppState()
 }
