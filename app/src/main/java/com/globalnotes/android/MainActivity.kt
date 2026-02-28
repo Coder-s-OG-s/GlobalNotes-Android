@@ -38,7 +38,13 @@ class MainActivity : ComponentActivity() {
                         AppState.Onboarding -> {
                             com.globalnotes.android.ui.screens.OnboardingScreen(
                                 onBack = { appState = AppState.Loading },
-                                onFinish = { appState = AppState.Main }
+                                onFinish = { appState = AppState.Auth }
+                            )
+                        }
+                        AppState.Auth -> {
+                            com.globalnotes.android.ui.screens.AuthScreen(
+                                onBack = { appState = AppState.Onboarding },
+                                onAuthSuccess = { appState = AppState.Main }
                             )
                         }
                         AppState.Main -> {
@@ -54,5 +60,6 @@ class MainActivity : ComponentActivity() {
 sealed class AppState {
     data object Loading : AppState()
     data object Onboarding : AppState()
+    data object Auth : AppState()
     data object Main : AppState()
 }

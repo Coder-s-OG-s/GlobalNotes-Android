@@ -59,3 +59,12 @@ val OnboardingSubtitle = Color(0xFF6E665A)
 val OnboardingButton = Color(0xFFC07727)
 val OnboardingDotActive = Color(0xFFD97706)
 val OnboardingDotInactive = Color(0xFFD1CECB)
+
+// Auth Screen Colors
+val AuthCardBackground = Color(0xFFEBE3D5)
+val AuthInputBackground = Color(0xFFF3EFE7)
+val AuthButtonBackground = Color(0xFF26211B)
+val AuthInputBorder = Color(0xFFDCD6CB)
+val AuthTextPrimary = Color(0xFF211B15)
+val AuthTextSecondary = Color(0xFF8C8479)
+val AuthAccent = Color(0xFFBC742E)

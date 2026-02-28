@@ -97,7 +97,13 @@ fun OnboardingScreen(onBack: () -> Unit = {}, onFinish: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onBack) {
+                IconButton(onClick = {
+                    if (pagerState.currentPage > 0) {
+                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                    } else {
+                        onBack()
+                    }
+                }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
@@ -238,15 +244,6 @@ fun OnboardingScreen(onBack: () -> Unit = {}, onFinish: () -> Unit) {
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Sign In",
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = OnboardingTitle,
-                modifier = Modifier.clickable { }
-            )
-            
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
