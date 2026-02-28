@@ -12,18 +12,28 @@ import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
 import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.animation.Crossfade
+import androidx.compose.runtime.*
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.globalnotes.android.ui.theme.GlobalNotesTheme
 import com.globalnotes.android.ui.screens.MainScreen
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3AdaptiveApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            var showSplash by remember { mutableStateOf(true) }
             GlobalNotesTheme {
-                MainScreen()
+                Crossfade(targetState = showSplash, label = "splashTransition") { isSplash ->
+                    if (isSplash) {
+                        com.globalnotes.android.ui.screens.LoadingScreen(onFinish = { showSplash = false })
+                    } else {
+                        MainScreen()
+                    }
+                }
             }
         }
     }

@@ -45,3 +45,9 @@ val ColorOceanTeal = Color(0xFF30B0C7)
 val ColorRoseGold = Color(0xFFFF2D55)
 val ColorSlateGray = Color(0xFF8E8E93)
 val ColorCrimsonRed = Color(0xFFFF3B30)
+
+// Loading Screen Colors
+val LoadingBackgroundStart = Color(0xFF2C241E)
+val LoadingBackgroundEnd = Color(0xFF14100D)
+val LoadingAccent = Color(0xFFD97706)
+val LoadingText = Color(0xFFE5E7EB)
