@@ -84,7 +84,7 @@ fun PhoneLayout(viewModel: NoteViewModel) {
             directive = navigator.scaffoldDirective,
             value = navigator.scaffoldValue,
             listPane = {
-                NotesListPanel(
+                WorkspaceScreen(
                     viewModel = viewModel,
                     onNoteClick = { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail) },
                     onMenuClick = { scope.launch { drawerState.open() } }

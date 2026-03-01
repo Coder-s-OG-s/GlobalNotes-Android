@@ -14,16 +14,60 @@ data class Note(
     val isFavorite: Boolean = false,
     val isArchived: Boolean = false,
     val folder: String = "Personal",
+    val accentColor: Color = Color(0xFF2196F3),
     val backgroundColor: Color = Color.White
 )
 
 class NoteViewModel : ViewModel() {
     private val _notes = mutableStateListOf<Note>(
-        Note(title = "Product Vision 2024", content = "The future of document collaboration...", time = "10:30 AM", folder = "Work"),
-        Note(title = "Marketing Strategy", content = "Campaign themes: Simplicity, Speed...", time = "Yesterday", folder = "Work"),
-        Note(title = "Groceries", content = "Milk, Eggs, Bread, Avocados...", time = "Feb 24", folder = "Personal"),
-        Note(title = "Mobile App Feedback", content = "Users want more offline features...", time = "Feb 22", isFavorite = true),
-        Note(title = "Meeting Notes", content = "Discussed the new roadmap...", time = "Feb 20")
+        Note(
+            title = "Project Alpha",
+            content = "Meeting notes regarding the new Q4 roadmap. Key decisions were made about product direction and team responsibilities.",
+            time = "2m ago", folder = "Work",
+            accentColor = Color(0xFF2196F3)
+        ),
+        Note(
+            title = "Novel Ideas",
+            content = "The protagonist discovers a hidden door in the old library. It leads to a world untouched by time...",
+            time = "1d ago", folder = "Writing",
+            accentColor = Color(0xFFD97706)
+        ),
+        Note(
+            title = "Moodboard",
+            content = "Inspiration for the living room redesign. Focus on warm neutrals and natural materials.",
+            time = "1h ago", folder = "Design",
+            isFavorite = true, accentColor = Color(0xFFD97706)
+        ),
+        Note(
+            title = "Q3 Review",
+            content = "Prepare slide deck for board meeting.",
+            time = "2d ago", folder = "Work",
+            accentColor = Color(0xFF5856D6)
+        ),
+        Note(
+            title = "Grocery List",
+            content = "• Milk\n• Eggs\n• Artisan bread\n• Espresso beans",
+            time = "3h ago", folder = "Personal",
+            accentColor = Color(0xFF30B0C7)
+        ),
+        Note(
+            title = "Trip Plans",
+            content = "Hiking trails in the Pacific Northwest. Check permits for Mt Rainier and Olympic NP.",
+            time = "5d ago", folder = "Travel",
+            accentColor = Color(0xFF34C759)
+        ),
+        Note(
+            title = "Marketing Strategy",
+            content = "Campaign themes: Simplicity, Speed, Trust. Q4 launch plan with social media focus and influencer partnerships.",
+            time = "Yesterday", folder = "Work",
+            accentColor = Color(0xFF007AFF)
+        ),
+        Note(
+            title = "Meeting Notes",
+            content = "Discussed the new roadmap for Q1. Action items assigned to team leads. Follow up by Friday.",
+            time = "Feb 20", folder = "Work",
+            accentColor = Color(0xFFFF9500)
+        )
     )
     val notes: List<Note> get() = _notes
 

@@ -60,6 +60,19 @@ val OnboardingButton = Color(0xFFC07727)
 val OnboardingDotActive = Color(0xFFD97706)
 val OnboardingDotInactive = Color(0xFFD1CECB)
 
+// Workspace Screen Colors
+val WorkspaceBg = Color(0xFFF5F2EE)
+val WorkspaceAmber = Color(0xFFD97706)
+val WorkspaceCardBg = Color(0xFFFFFFFF)
+val WorkspaceChipBg = Color(0xFFEEEAE4)
+val WorkspaceTextPrimary = Color(0xFF1A1310)
+val WorkspaceTextSecondary = Color(0xFF8C8479)
+val WorkspaceTagWork = Color(0xFF2196F3)
+val WorkspaceTagPersonal = Color(0xFF9C27B0)
+val WorkspaceTagWriting = Color(0xFFFF9800)
+val WorkspaceTagDesign = Color(0xFFE91E63)
+val WorkspaceTagTravel = Color(0xFF4CAF50)
+
 // Auth Screen Colors
 val AuthCardBackground = Color(0xFFEBE3D5)
 val AuthInputBackground = Color(0xFFF3EFE7)
