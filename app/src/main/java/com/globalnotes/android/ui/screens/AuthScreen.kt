@@ -27,11 +27,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.globalnotes.android.ui.theme.*
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 @Composable
 fun AuthScreen(onBack: () -> Unit = {}, onAuthSuccess: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isSignIn by remember { mutableStateOf(true) }
+    val scrollState = rememberScrollState()
 
     Surface(
         color = OnboardingBackground,
@@ -39,9 +43,10 @@ fun AuthScreen(onBack: () -> Unit = {}, onAuthSuccess: () -> Unit) {
     ) {
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .verticalScroll(scrollState)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -50,11 +55,11 @@ fun AuthScreen(onBack: () -> Unit = {}, onAuthSuccess: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Start
             ) {
-                IconButton(onClick = onBack) { // Reverted to original onBack() as pagerState and scope are not defined in AuthScreen
+                IconButton(onClick = onBack) { 
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = AuthTextPrimary // Reverted to original tint
+                        tint = AuthTextPrimary 
                     )
                 }
             }
@@ -170,30 +175,14 @@ fun AuthScreen(onBack: () -> Unit = {}, onAuthSuccess: () -> Unit) {
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    // Divider
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(modifier = Modifier.weight(1f).height(1.dp).background(AuthInputBorder.copy(alpha = 0.5f)))
-                        Text(
-                            "  OR CONTINUE WITH  ",
-                            style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.5.sp),
-                            color = AuthTextSecondary
-                        )
-                        Box(modifier = Modifier.weight(1f).height(1.dp).background(AuthInputBorder.copy(alpha = 0.5f)))
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     // Google Button
                     Surface(
                         onClick = { },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(64.dp),
+                            .height(56.dp),
                         shape = RoundedCornerShape(32.dp),
                         color = Color.Transparent,
                         border = BorderStroke(1.dp, AuthInputBorder.copy(alpha = 0.5f))
@@ -203,7 +192,7 @@ fun AuthScreen(onBack: () -> Unit = {}, onAuthSuccess: () -> Unit) {
                             horizontalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                "G ", 
+                                "G ",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.ExtraBold,
                                     color = Color(0xFF4285F4)
@@ -216,10 +205,34 @@ fun AuthScreen(onBack: () -> Unit = {}, onAuthSuccess: () -> Unit) {
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Continue as Guest Button
+                    Surface(
+                        onClick = onAuthSuccess,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(32.dp),
+                        color = Color.Transparent,
+                        border = BorderStroke(1.5.dp, AuthTextSecondary.copy(alpha = 0.4f))
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                "Continue as Guest",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = AuthTextSecondary
+                            )
+                        }
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Pro Badge
             Surface(

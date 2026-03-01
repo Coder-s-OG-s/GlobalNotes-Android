@@ -38,6 +38,7 @@ class MainActivity : ComponentActivity() {
                         AppState.Onboarding -> {
                             com.globalnotes.android.ui.screens.OnboardingScreen(
                                 onBack = { appState = AppState.Loading },
+                                onSkip = { appState = AppState.Main },
                                 onFinish = { appState = AppState.Auth }
                             )
                         }
