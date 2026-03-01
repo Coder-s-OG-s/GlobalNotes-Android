@@ -42,7 +42,7 @@ data class OnboardingSlide(
 )
 
 @Composable
-fun OnboardingScreen(onBack: () -> Unit = {}, onFinish: () -> Unit) {
+fun OnboardingScreen(onBack: () -> Unit = {}, onSkip: () -> Unit = {}, onFinish: () -> Unit) {
     val slides = listOf(
         OnboardingSlide(
             imageRes = R.drawable.ai_writing,
@@ -111,7 +111,7 @@ fun OnboardingScreen(onBack: () -> Unit = {}, onFinish: () -> Unit) {
                         modifier = Modifier.size(24.dp)
                     )
                 }
-                TextButton(onClick = onFinish) {
+                TextButton(onClick = onSkip) {
                     Text(
                         text = "Skip",
                         style = MaterialTheme.typography.bodyLarge,
