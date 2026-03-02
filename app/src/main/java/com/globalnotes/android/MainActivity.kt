@@ -5,18 +5,17 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.adaptive.ExperimentalMaterial3AdaptiveApi
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.adaptive.layout.AnimatedPane
-import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffold
-import androidx.compose.material3.adaptive.layout.ListDetailPaneScaffoldRole
-import androidx.compose.material3.adaptive.navigation.rememberListDetailPaneScaffoldNavigator
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
-import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.*
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.globalnotes.android.ui.theme.GlobalNotesTheme
 import com.globalnotes.android.ui.screens.MainScreen
+import com.google.firebase.auth.FirebaseAuth
 
 class MainActivity : ComponentActivity() {
     @OptIn(ExperimentalMaterial3AdaptiveApi::class)
@@ -26,9 +25,31 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             var appState by remember { mutableStateOf<AppState>(AppState.Loading) }
-            
+
+            // Automatically navigate to Auth from any screen when Firebase signs out
+            DisposableEffect(Unit) {
+                val listener = FirebaseAuth.AuthStateListener { fa ->
+                    if (fa.currentUser == null && appState == AppState.Main) {
+                        appState = AppState.Auth
+                    }
+                }
+                FirebaseAuth.getInstance().addAuthStateListener(listener)
+                onDispose { FirebaseAuth.getInstance().removeAuthStateListener(listener) }
+            }
+
             GlobalNotesTheme {
-                Crossfade(targetState = appState, label = "appTransition") { state ->
+                AnimatedContent(
+                    targetState = appState,
+                    label = "appTransition",
+                    transitionSpec = {
+                        // Instant transition on sign-out so the sidebar "User" flash never shows
+                        if (initialState == AppState.Main && targetState == AppState.Auth) {
+                            EnterTransition.None togetherWith ExitTransition.None
+                        } else {
+                            fadeIn() togetherWith fadeOut()
+                        }
+                    }
+                ) { state ->
                     when (state) {
                         AppState.Loading -> {
                             com.globalnotes.android.ui.screens.LoadingScreen(onFinish = { 
@@ -49,7 +70,7 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         AppState.Main -> {
-                            MainScreen()
+                            MainScreen(onSignOut = { appState = AppState.Auth })
                         }
                     }
                 }

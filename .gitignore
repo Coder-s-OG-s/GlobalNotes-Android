@@ -10,3 +10,9 @@
 captures/
 .navigation/
 *.hprof
+
+# Firebase config (contains API keys — keep out of version control)
+google-services.json
+
+# Kotlin compiler session files
+.kotlin/

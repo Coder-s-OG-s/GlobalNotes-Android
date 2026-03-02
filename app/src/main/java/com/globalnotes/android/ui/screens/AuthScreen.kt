@@ -26,16 +26,45 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.globalnotes.android.ui.theme.*
+import com.globalnotes.android.viewmodel.AuthState
+import com.globalnotes.android.viewmodel.AuthViewModel
 
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.snapshotFlow
+import com.google.firebase.auth.FirebaseAuth
 
 @Composable
-fun AuthScreen(onBack: () -> Unit = {}, onAuthSuccess: () -> Unit) {
+fun AuthScreen(
+    onBack: () -> Unit = {},
+    onAuthSuccess: () -> Unit,
+    authViewModel: AuthViewModel = viewModel()
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isSignIn by remember { mutableStateOf(true) }
     val scrollState = rememberScrollState()
+
+    val context = LocalContext.current
+    val authState = authViewModel.authState
+    val isLoading = authState is AuthState.Loading
+
+    // Single effect: reset stale state first (synchronous within the coroutine),
+    // skip auth if already signed in, then watch for future sign-in success.
+    LaunchedEffect(Unit) {
+        authViewModel.resetState()
+        if (FirebaseAuth.getInstance().currentUser != null) {
+            onAuthSuccess()
+            return@LaunchedEffect
+        }
+        snapshotFlow { authViewModel.authState }
+            .collect { state ->
+                if (state is AuthState.Success) onAuthSuccess()
+            }
+    }
 
     Surface(
         color = OnboardingBackground,
@@ -126,7 +155,7 @@ fun AuthScreen(onBack: () -> Unit = {}, onAuthSuccess: () -> Unit) {
                     AuthInputLabel("Email")
                     AuthTextField(
                         value = email,
-                        onValueChange = { email = it },
+                        onValueChange = { email = it; authViewModel.resetError() },
                         placeholder = "journal@example.com"
                     )
 
@@ -151,16 +180,32 @@ fun AuthScreen(onBack: () -> Unit = {}, onAuthSuccess: () -> Unit) {
                     }
                     AuthTextField(
                         value = password,
-                        onValueChange = { password = it },
+                        onValueChange = { password = it; authViewModel.resetError() },
                         placeholder = "Enter password",
                         isPassword = true
                     )
 
-                    Spacer(modifier = Modifier.height(40.dp))
+                    // Error message
+                    if (authState is AuthState.Error) {
+                        Text(
+                            text = authState.message,
+                            color = Color(0xFFD32F2F),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp)
+                        )
+                    }
 
-                    // Sign In Button
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Sign In / Sign Up Button
                     Button(
-                        onClick = onAuthSuccess,
+                        onClick = {
+                            if (isSignIn) authViewModel.signIn(email, password)
+                            else authViewModel.signUp(email, password)
+                        },
+                        enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(64.dp)
@@ -168,18 +213,26 @@ fun AuthScreen(onBack: () -> Unit = {}, onAuthSuccess: () -> Unit) {
                         shape = RoundedCornerShape(32.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = AuthButtonBackground)
                     ) {
-                        Text(
-                            if (isSignIn) "Sign In" else "Sign Up",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            color = Color.White
-                        )
+                        if (isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = Color.White,
+                                strokeWidth = 2.5.dp
+                            )
+                        } else {
+                            Text(
+                                if (isSignIn) "Sign In" else "Sign Up",
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Google Button
                     Surface(
-                        onClick = { },
+                        onClick = { authViewModel.signInWithGoogle(context) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),

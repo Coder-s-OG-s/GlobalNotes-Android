@@ -19,7 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import coil.compose.AsyncImage
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,6 +44,8 @@ private val categories = listOf(
 @Composable
 fun WorkspaceScreen(
     viewModel: NoteViewModel,
+    photoUrl: String? = null,
+    userDisplayName: String? = null,
     onNoteClick: () -> Unit = {},
     onMenuClick: () -> Unit = {}
 ) {
@@ -78,7 +82,11 @@ fun WorkspaceScreen(
             verticalItemSpacing = 10.dp
         ) {
             item(span = StaggeredGridItemSpan.FullLine) {
-                WorkspaceHeader(onMenuClick = onMenuClick)
+                WorkspaceHeader(
+                    photoUrl        = photoUrl,
+                    userDisplayName = userDisplayName,
+                    onMenuClick     = onMenuClick
+                )
             }
 
             item(span = StaggeredGridItemSpan.FullLine) {
@@ -126,7 +134,11 @@ fun WorkspaceScreen(
 }
 
 @Composable
-private fun WorkspaceHeader(onMenuClick: () -> Unit) {
+private fun WorkspaceHeader(
+    photoUrl: String?,
+    userDisplayName: String?,
+    onMenuClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -162,19 +174,29 @@ private fun WorkspaceHeader(onMenuClick: () -> Unit) {
             )
         }
 
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFD4C5B0)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                Icons.Filled.Person,
+        if (photoUrl != null) {
+            AsyncImage(
+                model            = photoUrl,
                 contentDescription = "Profile",
-                tint = Color(0xFF8C7B6A),
-                modifier = Modifier.size(20.dp)
+                contentScale     = ContentScale.Crop,
+                modifier         = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
             )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFFD4C5B0)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text  = userDisplayName?.firstOrNull()?.uppercaseChar()?.toString() ?: "U",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color(0xFF8C7B6A)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(8.dp))
@@ -287,7 +309,7 @@ private fun WorkspaceNoteCard(note: Note, onClick: () -> Unit) {
                     .fillMaxWidth()
                     .height(5.dp)
                     .background(
-                        note.accentColor,
+                        tagColor,
                         RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                     )
             )
