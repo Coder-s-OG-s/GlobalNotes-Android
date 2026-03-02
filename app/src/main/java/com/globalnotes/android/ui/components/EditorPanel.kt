@@ -24,9 +24,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.AsyncImage
 import com.globalnotes.android.viewmodel.NoteViewModel
 import com.globalnotes.android.ui.theme.*
 
@@ -87,6 +92,10 @@ fun EditorPanel(
     }
 
     val scrollState = rememberScrollState()
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri -> uri?.let { viewModel.uploadPhotoToNote(note?.id ?: return@rememberLauncherForActivityResult, it) } }
 
     if (note == null) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -178,6 +187,11 @@ fun EditorPanel(
                     contentState = contentState.toggleNumberedOnCurrentLine()
                     viewModel.updateNoteContent(note.id, contentState.text)
                 },
+                onPhoto = {
+                    photoPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                },
                 onColor = { c ->
                     val sel = contentState.selection
                     if (!sel.collapsed)
@@ -243,6 +257,15 @@ fun EditorPanel(
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 16.dp)
             )
+
+            // ── Photos ────────────────────────────────────────────────────────
+            if (note.photoUrls.isNotEmpty() || viewModel.isUploadingPhoto) {
+                PhotosSection(
+                    photoUrls   = note.photoUrls,
+                    isUploading = viewModel.isUploadingPhoto,
+                    onRemove    = { url -> viewModel.removePhotoFromNote(note.id, url) }
+                )
+            }
 
             // ── Content (with optional paper background) ───────────────────────
             val lineSpacing = 28.dp
@@ -488,6 +511,7 @@ private fun EditorBottomBar(
     onStrikethrough: () -> Unit,
     onBulletList: () -> Unit,
     onNumberedList: () -> Unit,
+    onPhoto: () -> Unit,
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
     onColor: (Color) -> Unit
@@ -532,7 +556,7 @@ private fun EditorBottomBar(
                 verticalAlignment     = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                MediaBtn(Icons.Outlined.Image,      "Photo")  {}
+                MediaBtn(Icons.Outlined.Image,      "Photo")  { onPhoto() }
                 MediaBtn(Icons.Outlined.Mic,        "Audio")  {}
                 MediaBtn(Icons.Outlined.AttachFile, "File")   {}
                 MediaBtn(Icons.Outlined.Brush,      "Sketch") {}
@@ -680,6 +704,72 @@ private fun MediaBtn(icon: ImageVector, label: String, onClick: () -> Unit) {
     ) {
         Icon(icon, label, modifier = Modifier.size(22.dp), tint = Color(0xFF6B9E9E))
         Text(label, style = MaterialTheme.typography.labelSmall, color = Color(0xFF8C8479), fontSize = 10.sp)
+    }
+}
+
+// ── Photos section ────────────────────────────────────────────────────────────
+
+@Composable
+private fun PhotosSection(
+    photoUrls: List<String>,
+    isUploading: Boolean,
+    onRemove: (String) -> Unit
+) {
+    Column(
+        modifier            = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        photoUrls.forEach { url ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+            ) {
+                AsyncImage(
+                    model            = url,
+                    contentDescription = null,
+                    contentScale     = ContentScale.FillWidth,
+                    modifier         = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(28.dp)
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                        .clickable { onRemove(url) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Remove photo",
+                        tint     = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+        if (isUploading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFEDE9E3)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color    = WorkspaceAmber,
+                    modifier = Modifier.size(32.dp),
+                    strokeWidth = 3.dp
+                )
+            }
+        }
     }
 }
 

@@ -1,11 +1,13 @@
 package com.globalnotes.android.viewmodel
 
+import android.net.Uri
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import com.google.firebase.storage.FirebaseStorage
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -17,7 +19,8 @@ data class Note(
     val isFavorite: Boolean = false,
     val isArchived: Boolean = false,
     val folder: String = "Personal",
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val photoUrls: List<String> = emptyList()
 )
 
 class NoteViewModel : ViewModel() {
@@ -35,6 +38,9 @@ class NoteViewModel : ViewModel() {
         private set
 
     var currentFilter by mutableStateOf("All Notes")
+        private set
+
+    var isUploadingPhoto by mutableStateOf(false)
         private set
 
     val selectedNote by derivedStateOf {
@@ -84,6 +90,7 @@ class NoteViewModel : ViewModel() {
                 _notes.addAll(snapshot.documents.mapNotNull { doc ->
                     try {
                         val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                        @Suppress("UNCHECKED_CAST")
                         Note(
                             id          = doc.id,
                             title       = doc.getString("title") ?: "",
@@ -92,7 +99,8 @@ class NoteViewModel : ViewModel() {
                             isFavorite  = doc.getBoolean("isFavorite") ?: false,
                             isArchived  = doc.getBoolean("isArchived") ?: false,
                             folder      = doc.getString("folder") ?: "Personal",
-                            createdAt   = createdAt
+                            createdAt   = createdAt,
+                            photoUrls   = (doc.get("photoUrls") as? List<String>) ?: emptyList()
                         )
                     } catch (e: Exception) { null }
                 })
@@ -170,6 +178,34 @@ class NoteViewModel : ViewModel() {
         if (existing.contains(trimmed.lowercase())) return
         db.collection("users").document(uid).collection("folders")
             .add(hashMapOf("name" to trimmed, "createdAt" to System.currentTimeMillis()))
+    }
+
+    // ── Photo uploads ─────────────────────────────────────────────────────────
+
+    fun uploadPhotoToNote(noteId: String, uri: Uri) {
+        val uid = auth.currentUser?.uid ?: return
+        val fileName = "${System.currentTimeMillis()}.jpg"
+        val ref = FirebaseStorage.getInstance().reference
+            .child("users/$uid/notes/$noteId/$fileName")
+        isUploadingPhoto = true
+        ref.putFile(uri)
+            .continueWithTask { task ->
+                if (!task.isSuccessful) throw task.exception!!
+                ref.downloadUrl
+            }
+            .addOnSuccessListener { downloadUri ->
+                isUploadingPhoto = false
+                val note = _notes.find { it.id == noteId } ?: return@addOnSuccessListener
+                val updated = note.photoUrls + downloadUri.toString()
+                userNotes()?.document(noteId)?.update("photoUrls", updated)
+            }
+            .addOnFailureListener { isUploadingPhoto = false }
+    }
+
+    fun removePhotoFromNote(noteId: String, photoUrl: String) {
+        val note = _notes.find { it.id == noteId } ?: return
+        userNotes()?.document(noteId)?.update("photoUrls", note.photoUrls.filter { it != photoUrl })
+        try { FirebaseStorage.getInstance().getReferenceFromUrl(photoUrl).delete() } catch (_: Exception) {}
     }
 
     // ── Helper ───────────────────────────────────────────────────────────────
