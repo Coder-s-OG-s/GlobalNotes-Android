@@ -17,6 +17,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -28,6 +29,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.globalnotes.android.viewmodel.NoteViewModel
 import com.globalnotes.android.ui.theme.*
+
+private val NUMBER_LIST_REGEX = Regex("^(\\d+)\\. ")
 
 private enum class PaperStyle(val label: String) {
     PLAIN("Plain"), LINED("Lined"), GRID("Grid"), DOTTED("Dotted")
@@ -47,6 +50,31 @@ fun EditorPanel(
     var isItalic        by remember { mutableStateOf(false) }
     var isUnderline     by remember { mutableStateOf(false) }
     var isStrikethrough by remember { mutableStateOf(false) }
+
+    val isBulletList by remember {
+        derivedStateOf {
+            val cursor = contentState.selection.start
+            val t = contentState.text
+            if (t.isEmpty()) false
+            else {
+                val ls = t.lastIndexOf('\n', (cursor - 1).coerceAtLeast(0)) + 1
+                val le = t.indexOf('\n', cursor).let { if (it == -1) t.length else it }
+                t.substring(ls, le).startsWith("• ")
+            }
+        }
+    }
+    val isNumberedList by remember {
+        derivedStateOf {
+            val cursor = contentState.selection.start
+            val t = contentState.text
+            if (t.isEmpty()) false
+            else {
+                val ls = t.lastIndexOf('\n', (cursor - 1).coerceAtLeast(0)) + 1
+                val le = t.indexOf('\n', cursor).let { if (it == -1) t.length else it }
+                NUMBER_LIST_REGEX.containsMatchIn(t.substring(ls, le))
+            }
+        }
+    }
 
     var selectedPaper by remember { mutableStateOf(PaperStyle.LINED) }
     var fontSize      by remember { mutableStateOf(16f) }   // sp, clamped 10–32
@@ -90,6 +118,8 @@ fun EditorPanel(
                 isItalic        = isItalic,
                 isUnderline     = isUnderline,
                 isStrikethrough = isStrikethrough,
+                isBulletList    = isBulletList,
+                isNumberedList  = isNumberedList,
                 fontSize        = fontSize,
                 selectedColor   = selectedColor,
                 onBold = {
@@ -139,6 +169,14 @@ fun EditorPanel(
                         fontSize = newSize
                         contentState = contentState.withSpanAll(SpanStyle(fontSize = newSize.sp))
                     }
+                },
+                onBulletList = {
+                    contentState = contentState.toggleBulletOnCurrentLine()
+                    viewModel.updateNoteContent(note.id, contentState.text)
+                },
+                onNumberedList = {
+                    contentState = contentState.toggleNumberedOnCurrentLine()
+                    viewModel.updateNoteContent(note.id, contentState.text)
                 },
                 onColor = { c ->
                     val sel = contentState.selection
@@ -236,9 +274,10 @@ fun EditorPanel(
 
                 BasicTextField(
                     value         = contentState,
-                    onValueChange = {
-                        contentState = it
-                        viewModel.updateNoteContent(note.id, it.text)
+                    onValueChange = { new ->
+                        val processed = autoHandleListContinuation(new, contentState)
+                        contentState = processed
+                        viewModel.updateNoteContent(note.id, processed.text)
                     },
                     textStyle = bodyStyle,
                     modifier  = Modifier
@@ -377,12 +416,16 @@ private fun EditorBottomBar(
     isItalic: Boolean,
     isUnderline: Boolean,
     isStrikethrough: Boolean,
+    isBulletList: Boolean,
+    isNumberedList: Boolean,
     fontSize: Float,
     selectedColor: Color,
     onBold: () -> Unit,
     onItalic: () -> Unit,
     onUnderline: () -> Unit,
     onStrikethrough: () -> Unit,
+    onBulletList: () -> Unit,
+    onNumberedList: () -> Unit,
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
     onColor: (Color) -> Unit
@@ -412,8 +455,8 @@ private fun EditorBottomBar(
                         .height(20.dp)
                         .background(Color(0xFFD1CECB))
                 )
-                FmtBtn(Icons.Default.FormatListBulleted,     "Bullets")   {}
-                FmtBtn(Icons.Default.FormatListNumbered,     "Numbered")  {}
+                FmtToggleBtn(Icons.Default.FormatListBulleted, "Bullets",  isBulletList,  onBulletList)
+                FmtToggleBtn(Icons.Default.FormatListNumbered, "Numbered", isNumberedList, onNumberedList)
                 FmtBtn(Icons.Default.CheckBox,               "Checkbox")  {}
             }
 
@@ -639,6 +682,90 @@ private fun TextFieldValue.withSpanAll(spanStyle: SpanStyle): TextFieldValue {
         },
         selection = selection
     )
+}
+
+// ── List helpers ──────────────────────────────────────────────────────────────
+
+private fun TextFieldValue.toggleBulletOnCurrentLine(): TextFieldValue {
+    val cursor = selection.start
+    val ls = text.lastIndexOf('\n', (cursor - 1).coerceAtLeast(0)) + 1
+    val le = text.indexOf('\n', cursor).let { if (it == -1) text.length else it }
+    val line = text.substring(ls, le)
+    return if (line.startsWith("• ")) {
+        val newText = text.substring(0, ls) + line.drop(2) + text.substring(le)
+        TextFieldValue(text = newText, selection = TextRange((cursor - 2).coerceAtLeast(ls)))
+    } else {
+        val numPrefix = NUMBER_LIST_REGEX.find(line)?.value ?: ""
+        val cleanLine = line.drop(numPrefix.length)
+        val newText = text.substring(0, ls) + "• " + cleanLine + text.substring(le)
+        val newCursor = (cursor - numPrefix.length + 2).coerceAtLeast(ls + 2)
+        TextFieldValue(text = newText, selection = TextRange(newCursor))
+    }
+}
+
+private fun TextFieldValue.toggleNumberedOnCurrentLine(): TextFieldValue {
+    val cursor = selection.start
+    val ls = text.lastIndexOf('\n', (cursor - 1).coerceAtLeast(0)) + 1
+    val le = text.indexOf('\n', cursor).let { if (it == -1) text.length else it }
+    val line = text.substring(ls, le)
+    val numMatch = NUMBER_LIST_REGEX.find(line)
+    return if (numMatch != null) {
+        val pLen = numMatch.value.length
+        val newText = text.substring(0, ls) + line.drop(pLen) + text.substring(le)
+        TextFieldValue(text = newText, selection = TextRange((cursor - pLen).coerceAtLeast(ls)))
+    } else {
+        // Determine number from previous numbered lines
+        val prevLines = if (ls == 0) emptyList() else text.substring(0, ls - 1).split('\n')
+        var num = 1
+        for (i in prevLines.indices.reversed()) {
+            val m = NUMBER_LIST_REGEX.find(prevLines[i])
+            if (m != null) { num = m.groupValues[1].toInt() + 1; break }
+        }
+        val bulletLen = if (line.startsWith("• ")) 2 else 0
+        val cleanLine = line.drop(bulletLen)
+        val prefix = "$num. "
+        val newText = text.substring(0, ls) + prefix + cleanLine + text.substring(le)
+        val newCursor = (cursor - bulletLen + prefix.length).coerceAtLeast(ls + prefix.length)
+        TextFieldValue(text = newText, selection = TextRange(newCursor))
+    }
+}
+
+/** Auto-insert list prefix when Enter is pressed, or stop the list on an empty bullet/number line. */
+private fun autoHandleListContinuation(new: TextFieldValue, old: TextFieldValue): TextFieldValue {
+    if (new.text.length != old.text.length + 1) return new
+    val insertPos = new.selection.start - 1
+    if (insertPos < 0 || new.text[insertPos] != '\n') return new
+
+    val ls = new.text.lastIndexOf('\n', insertPos - 1) + 1
+    val line = new.text.substring(ls, insertPos)
+
+    return when {
+        line == "• " -> {
+            // Empty bullet — stop list
+            val cleaned = new.text.substring(0, ls) + new.text.substring(insertPos + 1)
+            TextFieldValue(text = cleaned, selection = TextRange(ls))
+        }
+        line.startsWith("• ") -> {
+            val newText = new.text.substring(0, insertPos + 1) + "• " + new.text.substring(insertPos + 1)
+            TextFieldValue(text = newText, selection = TextRange(insertPos + 3))
+        }
+        else -> {
+            val match = NUMBER_LIST_REGEX.find(line)
+            when {
+                match != null && line == match.value -> {
+                    // Empty numbered line — stop list
+                    val cleaned = new.text.substring(0, ls) + new.text.substring(insertPos + 1)
+                    TextFieldValue(text = cleaned, selection = TextRange(ls))
+                }
+                match != null -> {
+                    val nextPrefix = "${match.groupValues[1].toInt() + 1}. "
+                    val newText = new.text.substring(0, insertPos + 1) + nextPrefix + new.text.substring(insertPos + 1)
+                    TextFieldValue(text = newText, selection = TextRange(insertPos + 1 + nextPrefix.length))
+                }
+                else -> new
+            }
+        }
+    }
 }
 
 @Composable
