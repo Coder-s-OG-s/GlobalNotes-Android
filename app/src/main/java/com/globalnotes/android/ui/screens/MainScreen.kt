@@ -15,10 +15,11 @@ import androidx.window.core.layout.WindowWidthSizeClass
 
 import com.globalnotes.android.viewmodel.NoteViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.firebase.auth.FirebaseAuth
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(onSignOut: () -> Unit = {}) {
     val noteViewModel: NoteViewModel = viewModel()
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
     val isTablet = windowSizeClass.windowWidthSizeClass != WindowWidthSizeClass.COMPACT
@@ -28,35 +29,33 @@ fun MainScreen() {
         color = MaterialTheme.colorScheme.background
     ) {
         if (isTablet) {
-            TabletLayout(noteViewModel)
+            TabletLayout(noteViewModel, onSignOut)
         } else {
-            PhoneLayout(noteViewModel)
+            PhoneLayout(noteViewModel, onSignOut)
         }
     }
 }
 
 @Composable
-fun TabletLayout(viewModel: NoteViewModel) {
+fun TabletLayout(viewModel: NoteViewModel, onSignOut: () -> Unit = {}) {
     Row(modifier = Modifier.fillMaxSize()) {
-        // Panel 1: Sidebar
         SidebarPanel(
-            modifier = Modifier.width(260.dp),
-            viewModel = viewModel
+            modifier  = Modifier.width(280.dp),
+            viewModel = viewModel,
+            onSignOut = onSignOut
         )
-        
+
         VerticalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-        
-        // Panel 2: Notes List
+
         NotesListPanel(
-            modifier = Modifier.width(320.dp),
+            modifier  = Modifier.width(320.dp),
             viewModel = viewModel
         )
-        
+
         VerticalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-        
-        // Panel 3: Editor
+
         EditorPanel(
-            modifier = Modifier.weight(1f),
+            modifier  = Modifier.weight(1f),
             viewModel = viewModel
         )
     }
@@ -64,35 +63,42 @@ fun TabletLayout(viewModel: NoteViewModel) {
 
 @OptIn(ExperimentalMaterial3AdaptiveApi::class)
 @Composable
-fun PhoneLayout(viewModel: NoteViewModel) {
-    val navigator = rememberListDetailPaneScaffoldNavigator<Nothing>()
+fun PhoneLayout(viewModel: NoteViewModel, onSignOut: () -> Unit = {}) {
+    val navigator   = rememberListDetailPaneScaffoldNavigator<Nothing>()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val scope = rememberCoroutineScope()
+    val scope       = rememberCoroutineScope()
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(
-                modifier = Modifier.width(300.dp),
+                modifier     = Modifier.width(300.dp),
                 windowInsets = WindowInsets.statusBars
             ) {
-                SidebarPanel(viewModel = viewModel)
+                SidebarPanel(viewModel = viewModel, onSignOut = onSignOut)
             }
         }
     ) {
+        val firebaseUser = FirebaseAuth.getInstance().currentUser
+        val photoUrl     = firebaseUser?.photoUrl?.toString()
+        val displayName  = firebaseUser?.displayName?.takeIf { it.isNotBlank() }
+            ?: firebaseUser?.email?.substringBefore("@")
+
         ListDetailPaneScaffold(
             directive = navigator.scaffoldDirective,
-            value = navigator.scaffoldValue,
-            listPane = {
+            value     = navigator.scaffoldValue,
+            listPane  = {
                 WorkspaceScreen(
-                    viewModel = viewModel,
-                    onNoteClick = { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail) },
-                    onMenuClick = { scope.launch { drawerState.open() } }
+                    viewModel       = viewModel,
+                    photoUrl        = photoUrl,
+                    userDisplayName = displayName,
+                    onNoteClick     = { navigator.navigateTo(ListDetailPaneScaffoldRole.Detail) },
+                    onMenuClick     = { scope.launch { drawerState.open() } }
                 )
             },
             detailPane = {
                 EditorPanel(
-                    viewModel = viewModel,
+                    viewModel   = viewModel,
                     onBackClick = { navigator.navigateBack() }
                 )
             },
@@ -102,8 +108,12 @@ fun PhoneLayout(viewModel: NoteViewModel) {
 }
 
 @Composable
-fun SidebarPanel(modifier: Modifier = Modifier, viewModel: NoteViewModel) {
-    com.globalnotes.android.ui.components.SidebarPanel(modifier = modifier, viewModel = viewModel)
+fun SidebarPanel(modifier: Modifier = Modifier, viewModel: NoteViewModel, onSignOut: () -> Unit = {}) {
+    com.globalnotes.android.ui.components.SidebarPanel(
+        modifier  = modifier,
+        viewModel = viewModel,
+        onSignOut = onSignOut
+    )
 }
 
 @Composable
@@ -114,8 +124,8 @@ fun NotesListPanel(
     onMenuClick: () -> Unit = {}
 ) {
     com.globalnotes.android.ui.components.NotesListPanel(
-        modifier = modifier,
-        viewModel = viewModel,
+        modifier    = modifier,
+        viewModel   = viewModel,
         onNoteClick = onNoteClick,
         onMenuClick = onMenuClick
     )
@@ -128,8 +138,8 @@ fun EditorPanel(
     onBackClick: () -> Unit = {}
 ) {
     com.globalnotes.android.ui.components.EditorPanel(
-        modifier = modifier,
-        viewModel = viewModel,
+        modifier    = modifier,
+        viewModel   = viewModel,
         onBackClick = onBackClick
     )
 }

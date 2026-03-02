@@ -2,76 +2,33 @@ package com.globalnotes.android.viewmodel
 
 import androidx.compose.runtime.*
 import androidx.lifecycle.ViewModel
-import androidx.compose.ui.graphics.Color
-import com.globalnotes.android.ui.theme.*
-import java.util.UUID
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
+import java.text.SimpleDateFormat
+import java.util.*
 
 data class Note(
     val id: String = UUID.randomUUID().toString(),
-    val title: String,
-    val content: String,
-    val time: String,
+    val title: String = "",
+    val content: String = "",
+    val time: String = "Just now",
     val isFavorite: Boolean = false,
     val isArchived: Boolean = false,
     val folder: String = "Personal",
-    val accentColor: Color = Color(0xFF2196F3),
-    val backgroundColor: Color = Color.White
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 class NoteViewModel : ViewModel() {
-    private val _notes = mutableStateListOf<Note>(
-        Note(
-            title = "Project Alpha",
-            content = "Meeting notes regarding the new Q4 roadmap. Key decisions were made about product direction and team responsibilities.",
-            time = "2m ago", folder = "Work",
-            accentColor = Color(0xFF2196F3)
-        ),
-        Note(
-            title = "Novel Ideas",
-            content = "The protagonist discovers a hidden door in the old library. It leads to a world untouched by time...",
-            time = "1d ago", folder = "Writing",
-            accentColor = Color(0xFFD97706)
-        ),
-        Note(
-            title = "Moodboard",
-            content = "Inspiration for the living room redesign. Focus on warm neutrals and natural materials.",
-            time = "1h ago", folder = "Design",
-            isFavorite = true, accentColor = Color(0xFFD97706)
-        ),
-        Note(
-            title = "Q3 Review",
-            content = "Prepare slide deck for board meeting.",
-            time = "2d ago", folder = "Work",
-            accentColor = Color(0xFF5856D6)
-        ),
-        Note(
-            title = "Grocery List",
-            content = "• Milk\n• Eggs\n• Artisan bread\n• Espresso beans",
-            time = "3h ago", folder = "Personal",
-            accentColor = Color(0xFF30B0C7)
-        ),
-        Note(
-            title = "Trip Plans",
-            content = "Hiking trails in the Pacific Northwest. Check permits for Mt Rainier and Olympic NP.",
-            time = "5d ago", folder = "Travel",
-            accentColor = Color(0xFF34C759)
-        ),
-        Note(
-            title = "Marketing Strategy",
-            content = "Campaign themes: Simplicity, Speed, Trust. Q4 launch plan with social media focus and influencer partnerships.",
-            time = "Yesterday", folder = "Work",
-            accentColor = Color(0xFF007AFF)
-        ),
-        Note(
-            title = "Meeting Notes",
-            content = "Discussed the new roadmap for Q1. Action items assigned to team leads. Follow up by Friday.",
-            time = "Feb 20", folder = "Work",
-            accentColor = Color(0xFFFF9500)
-        )
-    )
+
+    private val db   = FirebaseFirestore.getInstance()
+    private val auth = FirebaseAuth.getInstance()
+
+    private val _notes = mutableStateListOf<Note>()
     val notes: List<Note> get() = _notes
 
-    var selectedNoteId by mutableStateOf<String?>(_notes[0].id)
+    var selectedNoteId by mutableStateOf<String?>(null)
         private set
 
     var currentFilter by mutableStateOf("All Notes")
@@ -85,50 +42,123 @@ class NoteViewModel : ViewModel() {
         when (currentFilter) {
             "All Notes" -> _notes.filter { !it.isArchived }
             "Favorites" -> _notes.filter { it.isFavorite && !it.isArchived }
-            "Archived" -> _notes.filter { it.isArchived }
-            else -> _notes.filter { it.folder == currentFilter && !it.isArchived }
+            "Archived"  -> _notes.filter { it.isArchived }
+            else        -> _notes.filter { it.folder == currentFilter && !it.isArchived }
         }
     }
 
-    fun selectNote(id: String) {
+    private var listenerReg: ListenerRegistration? = null
+    private var authStateListener: FirebaseAuth.AuthStateListener? = null
+
+    init {
+        // React to sign-in AND sign-out automatically, even across user switches
+        authStateListener = FirebaseAuth.AuthStateListener { firebaseAuth ->
+            val uid = firebaseAuth.currentUser?.uid
+            if (uid != null) {
+                startListening(uid)
+            } else {
+                listenerReg?.remove()
+                listenerReg = null
+                _notes.clear()
+                selectedNoteId = null
+            }
+        }
+        auth.addAuthStateListener(authStateListener!!)
+    }
+
+    private fun startListening(uid: String) {
+        listenerReg?.remove()
+        listenerReg = db.collection("users").document(uid)
+            .collection("notes")
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, _ ->
+                snapshot ?: return@addSnapshotListener
+                _notes.clear()
+                _notes.addAll(snapshot.documents.mapNotNull { doc ->
+                    try {
+                        val createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                        Note(
+                            id          = doc.id,
+                            title       = doc.getString("title") ?: "",
+                            content     = doc.getString("content") ?: "",
+                            time        = createdAt.toRelativeTime(),
+                            isFavorite  = doc.getBoolean("isFavorite") ?: false,
+                            isArchived  = doc.getBoolean("isArchived") ?: false,
+                            folder      = doc.getString("folder") ?: "Personal",
+                            createdAt   = createdAt
+                        )
+                    } catch (e: Exception) { null }
+                })
+                if (selectedNoteId == null) {
+                    selectedNoteId = _notes.firstOrNull()?.id
+                }
+            }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        authStateListener?.let { auth.removeAuthStateListener(it) }
+        listenerReg?.remove()
+    }
+
+    // ── Selection / Filter ───────────────────────────────────────────────────
+
+    fun selectNote(id: String) { selectedNoteId = id }
+
+    fun updateFilter(filter: String) { currentFilter = filter }
+
+    // ── CRUD (all writes go to Firestore; snapshot listener updates _notes) ──
+
+    fun addNote() {
+        val uid = auth.currentUser?.uid ?: return
+        val id  = UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+        val data = hashMapOf(
+            "title"     to "Untitled Note",
+            "content"   to "",
+            "isFavorite" to false,
+            "isArchived" to false,
+            "folder"    to "Personal",
+            "createdAt" to now
+        )
+        db.collection("users").document(uid).collection("notes").document(id).set(data)
         selectedNoteId = id
     }
 
-    fun updateFilter(filter: String) {
-        currentFilter = filter
-    }
-
     fun updateNoteContent(id: String, newContent: String) {
-        val index = _notes.indexOfFirst { it.id == id }
-        if (index != -1) {
-            _notes[index] = _notes[index].copy(content = newContent)
-        }
+        userNotes()?.document(id)?.update("content", newContent)
     }
 
     fun updateNoteTitle(id: String, newTitle: String) {
-        val index = _notes.indexOfFirst { it.id == id }
-        if (index != -1) {
-            _notes[index] = _notes[index].copy(title = newTitle)
-        }
+        userNotes()?.document(id)?.update("title", newTitle)
     }
 
     fun toggleFavorite(id: String) {
-        val index = _notes.indexOfFirst { it.id == id }
-        if (index != -1) {
-            _notes[index] = _notes[index].copy(isFavorite = !_notes[index].isFavorite)
-        }
+        val note = _notes.find { it.id == id } ?: return
+        userNotes()?.document(id)?.update("isFavorite", !note.isFavorite)
     }
 
     fun deleteNote(id: String) {
-        _notes.removeIf { it.id == id }
         if (selectedNoteId == id) {
-            selectedNoteId = _notes.firstOrNull()?.id
+            selectedNoteId = _notes.firstOrNull { it.id != id }?.id
         }
+        userNotes()?.document(id)?.delete()
     }
 
-    fun addNote() {
-        val newNote = Note(title = "Untitled Note", content = "", time = "Just now")
-        _notes.add(0, newNote)
-        selectedNoteId = newNote.id
+    // ── Helper ───────────────────────────────────────────────────────────────
+
+    private fun userNotes() = auth.currentUser?.uid?.let { uid ->
+        db.collection("users").document(uid).collection("notes")
+    }
+}
+
+private fun Long.toRelativeTime(): String {
+    val diff = System.currentTimeMillis() - this
+    return when {
+        diff < 60_000          -> "Just now"
+        diff < 3_600_000       -> "${diff / 60_000}m ago"
+        diff < 86_400_000      -> "${diff / 3_600_000}h ago"
+        diff < 7 * 86_400_000  -> "${diff / 86_400_000}d ago"
+        else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(this))
     }
 }
