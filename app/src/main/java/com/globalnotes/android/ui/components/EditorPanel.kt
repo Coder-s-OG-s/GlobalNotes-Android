@@ -266,9 +266,9 @@ fun EditorPanel(
                     .heightIn(min = 600.dp)
             ) {
                 when (selectedPaper) {
-                    PaperStyle.LINED  -> LinedCanvas(lineSpacing, Color(0xFFE8E3DC))
-                    PaperStyle.GRID   -> GridCanvas(lineSpacing, Color(0xFFE8E3DC))
-                    PaperStyle.DOTTED -> DottedCanvas(lineSpacing, Color(0xFFD1CECB))
+                    PaperStyle.LINED  -> LinedCanvas(lineSpacing, Color(0xFFB8B0A6), Modifier.matchParentSize())
+                    PaperStyle.GRID   -> GridCanvas(lineSpacing, Color(0xFFB8B0A6), Modifier.matchParentSize())
+                    PaperStyle.DOTTED -> DottedCanvas(lineSpacing, Color(0xFFA8A099), Modifier.matchParentSize())
                     PaperStyle.PLAIN  -> {}
                 }
 
@@ -686,8 +686,8 @@ private fun MediaBtn(icon: ImageVector, label: String, onClick: () -> Unit) {
 // ── Canvas paper backgrounds ──────────────────────────────────────────────────
 
 @Composable
-private fun LinedCanvas(lineSpacing: Dp, lineColor: Color) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
+private fun LinedCanvas(lineSpacing: Dp, lineColor: Color, modifier: Modifier = Modifier.fillMaxSize()) {
+    Canvas(modifier = modifier) {
         val spacingPx = lineSpacing.toPx()
         val leftPad   = 24.dp.toPx()
         var y = spacingPx
@@ -704,8 +704,8 @@ private fun LinedCanvas(lineSpacing: Dp, lineColor: Color) {
 }
 
 @Composable
-private fun GridCanvas(lineSpacing: Dp, lineColor: Color) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
+private fun GridCanvas(lineSpacing: Dp, lineColor: Color, modifier: Modifier = Modifier.fillMaxSize()) {
+    Canvas(modifier = modifier) {
         val spacingPx = lineSpacing.toPx()
         var y = spacingPx
         while (y < size.height) {
@@ -831,8 +831,8 @@ private fun autoHandleListContinuation(new: TextFieldValue, old: TextFieldValue)
 }
 
 @Composable
-private fun DottedCanvas(spacing: Dp, dotColor: Color) {
-    Canvas(modifier = Modifier.fillMaxSize()) {
+private fun DottedCanvas(spacing: Dp, dotColor: Color, modifier: Modifier = Modifier.fillMaxSize()) {
+    Canvas(modifier = modifier) {
         val spacingPx = spacing.toPx()
         var y = spacingPx
         while (y < size.height) {
