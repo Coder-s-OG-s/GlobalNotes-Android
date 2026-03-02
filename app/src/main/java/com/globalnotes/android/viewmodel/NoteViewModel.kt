@@ -28,6 +28,9 @@ class NoteViewModel : ViewModel() {
     private val _notes = mutableStateListOf<Note>()
     val notes: List<Note> get() = _notes
 
+    private val _storedFolders = mutableStateListOf<String>()
+    val storedFolders: List<String> get() = _storedFolders
+
     var selectedNoteId by mutableStateOf<String?>(null)
         private set
 
@@ -48,6 +51,7 @@ class NoteViewModel : ViewModel() {
     }
 
     private var listenerReg: ListenerRegistration? = null
+    private var foldersListenerReg: ListenerRegistration? = null
     private var authStateListener: FirebaseAuth.AuthStateListener? = null
 
     init {
@@ -59,7 +63,10 @@ class NoteViewModel : ViewModel() {
             } else {
                 listenerReg?.remove()
                 listenerReg = null
+                foldersListenerReg?.remove()
+                foldersListenerReg = null
                 _notes.clear()
+                _storedFolders.clear()
                 selectedNoteId = null
             }
         }
@@ -93,12 +100,22 @@ class NoteViewModel : ViewModel() {
                     selectedNoteId = _notes.firstOrNull()?.id
                 }
             }
+
+        foldersListenerReg?.remove()
+        foldersListenerReg = db.collection("users").document(uid)
+            .collection("folders")
+            .addSnapshotListener { snapshot, _ ->
+                snapshot ?: return@addSnapshotListener
+                _storedFolders.clear()
+                _storedFolders.addAll(snapshot.documents.mapNotNull { it.getString("name") })
+            }
     }
 
     override fun onCleared() {
         super.onCleared()
         authStateListener?.let { auth.removeAuthStateListener(it) }
         listenerReg?.remove()
+        foldersListenerReg?.remove()
     }
 
     // ── Selection / Filter ───────────────────────────────────────────────────
@@ -143,6 +160,16 @@ class NoteViewModel : ViewModel() {
             selectedNoteId = _notes.firstOrNull { it.id != id }?.id
         }
         userNotes()?.document(id)?.delete()
+    }
+
+    fun addFolder(name: String) {
+        val uid = auth.currentUser?.uid ?: return
+        val trimmed = name.trim()
+        if (trimmed.isEmpty()) return
+        val existing = (_storedFolders + _notes.map { it.folder }).map { it.lowercase() }
+        if (existing.contains(trimmed.lowercase())) return
+        db.collection("users").document(uid).collection("folders")
+            .add(hashMapOf("name" to trimmed, "createdAt" to System.currentTimeMillis()))
     }
 
     // ── Helper ───────────────────────────────────────────────────────────────

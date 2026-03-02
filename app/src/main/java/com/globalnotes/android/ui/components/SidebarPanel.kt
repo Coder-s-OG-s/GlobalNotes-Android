@@ -13,7 +13,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import android.widget.Toast
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
@@ -41,10 +41,12 @@ fun SidebarPanel(
         ?: currentUser?.email?.substringBefore("@") ?: "User"
     val photoUrl = currentUser?.photoUrl?.toString()
 
-    val allNotes      = viewModel.notes.filter { !it.isArchived }
-    val favCount      = allNotes.count { it.isFavorite }
-    val folderCounts  = allNotes.groupBy { it.folder }.mapValues { it.value.size }
-    val folders       = folderCounts.keys.sorted()
+    var showAddFolderDialog by remember { mutableStateOf(false) }
+
+    val allNotes         = viewModel.notes.filter { !it.isArchived }
+    val favCount         = allNotes.count { it.isFavorite }
+    val noteFolderCounts = allNotes.groupBy { it.folder }.mapValues { it.value.size }
+    val folders          = (noteFolderCounts.keys + viewModel.storedFolders).distinct().sorted()
 
     Column(
         modifier = modifier
@@ -216,7 +218,9 @@ fun SidebarPanel(
                         Icons.Default.Add,
                         contentDescription = "Add folder",
                         tint     = WorkspaceAmber,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clickable { showAddFolderDialog = true }
                     )
                 }
             }
@@ -224,7 +228,7 @@ fun SidebarPanel(
             items(folders) { folder ->
                 FolderCard(
                     name       = folder,
-                    count      = folderCounts[folder] ?: 0,
+                    count      = noteFolderCounts[folder] ?: 0,
                     isSelected = viewModel.currentFilter == folder,
                     onClick    = { viewModel.updateFilter(folder) }
                 )
@@ -245,9 +249,54 @@ fun SidebarPanel(
             }
         }
     }
+
+    if (showAddFolderDialog) {
+        AddFolderDialog(
+            onConfirm = { name ->
+                viewModel.addFolder(name)
+                showAddFolderDialog = false
+            },
+            onDismiss = { showAddFolderDialog = false }
+        )
+    }
 }
 
 // ── Private composables ──────────────────────────────────────────────────────
+
+@Composable
+private fun AddFolderDialog(onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    var folderName by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                "New Folder",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                color = Color(0xFF211B15)
+            )
+        },
+        text = {
+            OutlinedTextField(
+                value         = folderName,
+                onValueChange = { folderName = it },
+                placeholder   = { Text("e.g. Work, Travel, Ideas") },
+                singleLine    = true,
+                modifier      = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick  = { if (folderName.isNotBlank()) onConfirm(folderName.trim()) },
+                enabled  = folderName.isNotBlank()
+            ) { Text("Create", color = WorkspaceAmber) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = Color(0xFF8C8479))
+            }
+        }
+    )
+}
 
 @Composable
 private fun SidebarSectionLabel(text: String) {

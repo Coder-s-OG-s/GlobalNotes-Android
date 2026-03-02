@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.EditNote
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -370,6 +371,8 @@ fun AuthTextField(
     placeholder: String,
     isPassword: Boolean = false
 ) {
+    var passwordVisible by remember { mutableStateOf(false) }
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -397,17 +400,25 @@ fun AuthTextField(
                     onValueChange = onValueChange,
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = MaterialTheme.typography.bodyLarge.copy(color = AuthTextPrimary),
-                    visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+                    visualTransformation = if (isPassword && !passwordVisible)
+                        PasswordVisualTransformation()
+                    else
+                        androidx.compose.ui.text.input.VisualTransformation.None,
                     singleLine = true
                 )
             }
             if (isPassword) {
-                Icon(
-                    imageVector = Icons.Default.VisibilityOff,
-                    contentDescription = null,
-                    tint = AuthTextSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
+                IconButton(
+                    onClick = { passwordVisible = !passwordVisible },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                        tint = AuthTextSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
