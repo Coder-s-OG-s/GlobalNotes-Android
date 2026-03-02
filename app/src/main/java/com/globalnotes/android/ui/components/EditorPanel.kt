@@ -296,52 +296,114 @@ fun EditorPanel(
     }
 }
 
-// ── Paper style chip row ──────────────────────────────────────────────────────
+// ── Paper style card row ──────────────────────────────────────────────────────
 
 @Composable
 private fun PaperStyleRow(selected: PaperStyle, onSelect: (PaperStyle) -> Unit) {
     Row(
-        modifier = Modifier
+        modifier              = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment     = Alignment.CenterVertically
     ) {
         PaperStyle.entries.forEach { style ->
-            val isSelected = selected == style
+            PaperStyleCard(style = style, isSelected = selected == style, onClick = { onSelect(style) })
+        }
+    }
+}
+
+@Composable
+private fun PaperStyleCard(style: PaperStyle, isSelected: Boolean, onClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier            = Modifier.clickable(onClick = onClick)
+    ) {
+        Box {
             Surface(
-                onClick = { onSelect(style) },
-                shape   = RoundedCornerShape(50),
-                color   = Color.Transparent,
-                border  = BorderStroke(
-                    width = if (isSelected) 1.5.dp else 1.dp,
-                    color = if (isSelected) WorkspaceAmber else Color(0xFFD1CECB)
-                )
+                shape          = RoundedCornerShape(14.dp),
+                shadowElevation = if (isSelected) 4.dp else 1.dp,
+                border         = BorderStroke(
+                    width = if (isSelected) 2.dp else 1.dp,
+                    color = if (isSelected) WorkspaceAmber else Color(0xFFDDD8D2)
+                ),
+                color          = Color(0xFFFEFCF9),
+                modifier       = Modifier.size(width = 70.dp, height = 58.dp)
             ) {
-                Row(
-                    modifier              = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
-                    verticalAlignment     = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    if (isSelected) {
-                        Icon(
-                            Icons.Default.Check,
-                            contentDescription = null,
-                            tint     = WorkspaceAmber,
-                            modifier = Modifier.size(12.dp)
-                        )
+                when (style) {
+                    PaperStyle.PLAIN  -> {}
+                    PaperStyle.LINED  -> Canvas(Modifier.fillMaxSize()) {
+                        val gap  = 9.dp.toPx()
+                        val lPad = 8.dp.toPx()
+                        val rPad = 8.dp.toPx()
+                        var y    = gap * 1.8f
+                        while (y < size.height - 4.dp.toPx()) {
+                            drawLine(
+                                color       = Color(0xFFDDD8D2),
+                                start       = Offset(lPad, y),
+                                end         = Offset(size.width - rPad, y),
+                                strokeWidth = 1f
+                            )
+                            y += gap
+                        }
                     }
-                    Text(
-                        style.label,
-                        style = MaterialTheme.typography.labelMedium.copy(
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                        ),
-                        color = if (isSelected) WorkspaceAmber else Color(0xFF8C8479)
+                    PaperStyle.GRID   -> Canvas(Modifier.fillMaxSize()) {
+                        val gap = 9.dp.toPx()
+                        var y   = gap
+                        while (y < size.height) {
+                            drawLine(color = Color(0xFFDDD8D2), start = Offset(0f, y), end = Offset(size.width, y), strokeWidth = 1f)
+                            y += gap
+                        }
+                        var x = gap
+                        while (x < size.width) {
+                            drawLine(color = Color(0xFFDDD8D2), start = Offset(x, 0f), end = Offset(x, size.height), strokeWidth = 1f)
+                            x += gap
+                        }
+                    }
+                    PaperStyle.DOTTED -> Canvas(Modifier.fillMaxSize()) {
+                        val gap = 9.dp.toPx()
+                        var y   = gap
+                        while (y < size.height) {
+                            var x = gap
+                            while (x < size.width) {
+                                drawCircle(color = Color(0xFFCDC8C2), radius = 1.2f, center = Offset(x, y))
+                                x += gap
+                            }
+                            y += gap
+                        }
+                    }
+                }
+            }
+
+            // Checkmark badge
+            if (isSelected) {
+                Box(
+                    modifier         = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 7.dp, y = (-7).dp)
+                        .size(18.dp)
+                        .background(WorkspaceAmber, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = null,
+                        tint     = Color.White,
+                        modifier = Modifier.size(11.dp)
                     )
                 }
             }
         }
+
+        Text(
+            text       = style.label,
+            style      = MaterialTheme.typography.labelSmall.copy(
+                fontSize   = 11.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+            ),
+            color      = if (isSelected) WorkspaceAmber else Color(0xFF8C8479)
+        )
     }
 }
 
