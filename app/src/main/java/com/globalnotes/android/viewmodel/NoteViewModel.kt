@@ -20,7 +20,8 @@ data class Note(
     val isArchived: Boolean = false,
     val folder: String = "Personal",
     val createdAt: Long = System.currentTimeMillis(),
-    val photoUrls: List<String> = emptyList()
+    val photoUrls: List<String> = emptyList(),
+    val sketchUrls: List<String> = emptyList()
 )
 
 class NoteViewModel : ViewModel() {
@@ -41,6 +42,9 @@ class NoteViewModel : ViewModel() {
         private set
 
     var isUploadingPhoto by mutableStateOf(false)
+        private set
+
+    var isUploadingSketch by mutableStateOf(false)
         private set
 
     val selectedNote by derivedStateOf {
@@ -100,7 +104,8 @@ class NoteViewModel : ViewModel() {
                             isArchived  = doc.getBoolean("isArchived") ?: false,
                             folder      = doc.getString("folder") ?: "Personal",
                             createdAt   = createdAt,
-                            photoUrls   = (doc.get("photoUrls") as? List<String>) ?: emptyList()
+                            photoUrls   = (doc.get("photoUrls") as? List<String>) ?: emptyList(),
+                            sketchUrls  = (doc.get("sketchUrls") as? List<String>) ?: emptyList()
                         )
                     } catch (e: Exception) { null }
                 })
@@ -206,6 +211,34 @@ class NoteViewModel : ViewModel() {
         val note = _notes.find { it.id == noteId } ?: return
         userNotes()?.document(noteId)?.update("photoUrls", note.photoUrls.filter { it != photoUrl })
         try { FirebaseStorage.getInstance().getReferenceFromUrl(photoUrl).delete() } catch (_: Exception) {}
+    }
+
+    // ── Sketch uploads ────────────────────────────────────────────────────────
+
+    fun uploadSketchToNote(noteId: String, uri: Uri) {
+        val uid = auth.currentUser?.uid ?: return
+        val fileName = "${System.currentTimeMillis()}.png"
+        val ref = FirebaseStorage.getInstance().reference
+            .child("users/$uid/notes/$noteId/sketches/$fileName")
+        isUploadingSketch = true
+        ref.putFile(uri)
+            .continueWithTask { task ->
+                if (!task.isSuccessful) throw task.exception!!
+                ref.downloadUrl
+            }
+            .addOnSuccessListener { downloadUri ->
+                isUploadingSketch = false
+                val note = _notes.find { it.id == noteId } ?: return@addOnSuccessListener
+                val updated = note.sketchUrls + downloadUri.toString()
+                userNotes()?.document(noteId)?.update("sketchUrls", updated)
+            }
+            .addOnFailureListener { isUploadingSketch = false }
+    }
+
+    fun removeSketchFromNote(noteId: String, sketchUrl: String) {
+        val note = _notes.find { it.id == noteId } ?: return
+        userNotes()?.document(noteId)?.update("sketchUrls", note.sketchUrls.filter { it != sketchUrl })
+        try { FirebaseStorage.getInstance().getReferenceFromUrl(sketchUrl).delete() } catch (_: Exception) {}
     }
 
     // ── Helper ───────────────────────────────────────────────────────────────

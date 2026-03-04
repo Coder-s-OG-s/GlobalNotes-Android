@@ -97,6 +97,17 @@ fun EditorPanel(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri -> uri?.let { viewModel.uploadPhotoToNote(note?.id ?: return@rememberLauncherForActivityResult, it) } }
 
+    var showSketchDialog by remember { mutableStateOf(false) }
+
+    if (showSketchDialog) {
+        SketchCanvas(
+            onDismiss = { showSketchDialog = false },
+            onInsert = { uri ->
+                viewModel.uploadSketchToNote(note?.id ?: return@SketchCanvas, uri)
+            }
+        )
+    }
+
     if (note == null) {
         Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Select a note to start editing", color = Color(0xFF8C8479))
@@ -192,6 +203,9 @@ fun EditorPanel(
                         PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                     )
                 },
+                onSketch = {
+                    showSketchDialog = true
+                },
                 onColor = { c ->
                     val sel = contentState.selection
                     if (!sel.collapsed)
@@ -264,6 +278,15 @@ fun EditorPanel(
                     photoUrls   = note.photoUrls,
                     isUploading = viewModel.isUploadingPhoto,
                     onRemove    = { url -> viewModel.removePhotoFromNote(note.id, url) }
+                )
+            }
+
+            // ── Sketches ──────────────────────────────────────────────────────
+            if (note.sketchUrls.isNotEmpty() || viewModel.isUploadingSketch) {
+                SketchesSection(
+                    sketchUrls  = note.sketchUrls,
+                    isUploading = viewModel.isUploadingSketch,
+                    onRemove    = { url -> viewModel.removeSketchFromNote(note.id, url) }
                 )
             }
 
@@ -512,6 +535,7 @@ private fun EditorBottomBar(
     onBulletList: () -> Unit,
     onNumberedList: () -> Unit,
     onPhoto: () -> Unit,
+    onSketch: () -> Unit,
     onDecrease: () -> Unit,
     onIncrease: () -> Unit,
     onColor: (Color) -> Unit
@@ -559,7 +583,7 @@ private fun EditorBottomBar(
                 MediaBtn(Icons.Outlined.Image,      "Photo")  { onPhoto() }
                 MediaBtn(Icons.Outlined.Mic,        "Audio")  {}
                 MediaBtn(Icons.Outlined.AttachFile, "File")   {}
-                MediaBtn(Icons.Outlined.Brush,      "Sketch") {}
+                MediaBtn(Icons.Outlined.Brush,      "Sketch") { onSketch() }
             }
 
             HorizontalDivider(color = Color(0xFFEDE9E3), thickness = 0.5.dp)
@@ -748,6 +772,72 @@ private fun PhotosSection(
                     Icon(
                         Icons.Default.Close,
                         contentDescription = "Remove photo",
+                        tint     = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+        if (isUploading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color(0xFFEDE9E3)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color    = WorkspaceAmber,
+                    modifier = Modifier.size(32.dp),
+                    strokeWidth = 3.dp
+                )
+            }
+        }
+    }
+}
+
+// ── Sketches section ──────────────────────────────────────────────────────────
+
+@Composable
+private fun SketchesSection(
+    sketchUrls: List<String>,
+    isUploading: Boolean,
+    onRemove: (String) -> Unit
+) {
+    Column(
+        modifier            = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        sketchUrls.forEach { url ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+            ) {
+                AsyncImage(
+                    model            = url,
+                    contentDescription = null,
+                    contentScale     = ContentScale.FillWidth,
+                    modifier         = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp)
+                        .size(28.dp)
+                        .background(Color.Black.copy(alpha = 0.45f), CircleShape)
+                        .clickable { onRemove(url) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Remove sketch",
                         tint     = Color.White,
                         modifier = Modifier.size(14.dp)
                     )
